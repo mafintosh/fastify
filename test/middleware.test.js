@@ -620,3 +620,42 @@ test('middlewares with prefix', t => {
     })
   })
 })
+
+test('.use after routing', t => {
+  t.plan(5)
+
+  const instance = fastify()
+
+  instance.get('/test', function (request, reply) {
+    t.pass('hit /test route')
+    reply.send({ok: true})
+  })
+
+  instance.use(function (req, res, next) {
+    t.ok(req.url !== '/test')
+    next()
+  })
+
+  instance.listen(0, () => {
+    instance.server.unref()
+
+    sget({
+      method: 'GET',
+      url: 'http://localhost:' + instance.server.address().port + '/nope'
+    }, function (err, response) {
+      t.error(err)
+      t.strictEqual(response.statusCode, 404)
+    })
+
+    sget({
+      method: 'GET',
+      url: 'http://localhost:' + instance.server.address().port + '/test',
+      json: true
+    }, function (err, response, body) {
+      t.error(err)
+      t.deepEqual(body, {
+        ok: true
+      })
+    })
+  })
+})
